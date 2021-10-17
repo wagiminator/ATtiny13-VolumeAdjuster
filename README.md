@@ -74,7 +74,15 @@ Before compiling you have to define the IR commands for volume up and down. Diff
 ```
 
 ## Power Saving
-The code shuts down unused peripherals and utilizes the sleep mode power down function. It is regularly woken up by the watchdog timer.
+The code shuts down unused peripherals and utilizes the sleep mode power down function. It is regularly woken up by the watchdog timer. As long as no IR telegram is sent, the device consumes an average current of around 750µA at a battery voltage of 3.7V. The power protocol shown below was created with a [Power Profiler Kit II](https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2). As you can see, waking up from sleep by the watchdog timer about every 32ms causes current peaks of up to 1.8mA.
+
+![VolumeAdjuster_power_idle.png](https://raw.githubusercontent.com/wagiminator/ATtiny13-VolumeAdjuster/main/documentation/VolumeAdjuster_power_idle.png)
+
+Sending a NEC telegram takes about 70ms and consumes an average of a little over 4mA with current peaks of up to 20mA during this time.
+
+![VolumeAdjuster_power_transmit.png](https://raw.githubusercontent.com/wagiminator/ATtiny13-VolumeAdjuster/main/documentation/VolumeAdjuster_power_transmit.png)
+
+So the bottom line is that even a small 100mAh LiPo battery should have enough capacity for several movie nights.
 
 ## Timing Accuracy
 The accuracy of the internal oscillator of the ATtiny13 is +/-10% with the factory calibration. Usually this is sufficient for an infrared remote control. Slight deviations in timing are tolerated by the receiver, since cheap remote controls are usually not more accurate. Nevertheless, it is recommended to [manually calibrate](https://github.com/wagiminator/ATtiny84-TinyCalibrator) the internal oscillator and set the corresponding OSCCAL value at the beginning of the code.
