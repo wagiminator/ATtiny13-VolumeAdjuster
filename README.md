@@ -59,7 +59,7 @@ The current volume received by the microphone is measured approximately every 32
 A hysteresis is defined at the beginning of the code so that the volume control does not oscillate. It defines the distance between too loud and too quiet. The higher the value, the less often the volume is adjusted.
 
 ```c
-#define HYST        16    // hysteresis
+#define HYST  16    // hysteresis
 ```
 
 ## IR Protocol Implementation
@@ -82,7 +82,7 @@ Sending a NEC telegram takes about 70ms and consumes an average of a little over
 
 ![VolumeAdjuster_power_transmit.png](https://raw.githubusercontent.com/wagiminator/ATtiny13-VolumeAdjuster/main/documentation/VolumeAdjuster_power_transmit.png)
 
-So the bottom line is that even a small 100mAh LiPo battery should have enough capacity for several movie nights.
+So the bottom line is that even a small 100mAh LiPo battery should have enough capacity for several movie nights. To reduce power consumption even further, the 10kΩ potentiometer can be replaced by a 100kΩ one.
 
 ## Timing Accuracy
 The accuracy of the internal oscillator of the ATtiny13 is +/-10% with the factory calibration. Usually this is sufficient for an infrared remote control. Slight deviations in timing are tolerated by the receiver, since cheap remote controls are usually not more accurate. Nevertheless, it is recommended to [manually calibrate](https://github.com/wagiminator/ATtiny84-TinyCalibrator) the internal oscillator and set the corresponding OSCCAL value at the beginning of the code.
