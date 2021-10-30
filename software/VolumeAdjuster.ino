@@ -1,5 +1,15 @@
-// Volume Adjuster for ATtiny13A
-// 
+// ===================================================================================
+// Project:   Volume Adjuster based on ATtiny13A
+// Version:   v1.0
+// Year:      2021
+// Author:    Stefan Wagner
+// Github:    https://github.com/wagiminator
+// EasyEDA:   https://easyeda.com/wagiminator
+// License:   http://creativecommons.org/licenses/by-sa/3.0/
+// ===================================================================================
+//
+// Description:
+// ------------
 // Recently Great Scott built his version of an automatic volume adjuster.
 // In this project he solved one of the biggest problems with modern movies.
 // The problem is that the conversation volume is way too low in comparison
@@ -7,21 +17,29 @@
 // with a microphone and an IR LED in order to create his automatic volume
 // adjuster. It basically detects when loud movie music starts playing,
 // lowers the volume and then brings the volume back up when the music is over.
+// Since using an Arduino for this task is a bit of an overkill, here's a
+// version for the ATtiny13A.
 //
-// Since using an Arduino for this task is a bit of an overkill, here's a version
-// for the ATtiny13A.
+// References:
+// -----------
+// Based on a project by Great Scott:
+// https://youtu.be/j1V2I-otdzk
 //
-//                        +-\/-+
-//      --- A0 (D5) PB5  1|    |8  Vcc
-// MIC  --- A3 (D3) PB3  2|    |7  PB2 (D2) A1 --- 
-// POTI --- A2 (D4) PB4  3|    |6  PB1 (D1) ------ IR LED
-//                  GND  4|    |5  PB0 (D0) ------ 
-//                        +----+    
+// Wiring:
+// -------
+//                         +-\/-+
+//      --- RST ADC0 PB5  1|°   |8  Vcc
+//  MIC ------- ADC3 PB3  2|    |7  PB2 ADC1 -------- 
+// POTI ------- ADC2 PB4  3|    |6  PB1 AIN1 OC0B --- IR LED
+//                   GND  4|    |5  PB0 AIN0 OC0A --- 
+//                         +----+
 //
-// Controller: ATtiny13
+// Compilation Settings:
+// ---------------------
+// Controller: ATtiny13A
 // Core:       MicroCore (https://github.com/MCUdude/MicroCore)
 // Clockspeed: 1.2 MHz internal
-// BOD:        BOD disabled (energy saving)
+// BOD:        BOD disabled
 // Timing:     Micros disabled
 //
 // Leave the rest on default settings. Don't forget to "Burn bootloader"!
@@ -31,14 +49,12 @@
 // Note: The internal oscillator may need to be calibrated for the device
 //       to function properly.
 //
-// Based on a project by Great Scott:
-// https://youtu.be/j1V2I-otdzk
-//
-// 2021 by Stefan Wagner 
-// Project Files (EasyEDA): https://easyeda.com/wagiminator
-// Project Files (Github):  https://github.com/wagiminator
-// License: http://creativecommons.org/licenses/by-sa/3.0/
+// Fuse settings: -U lfuse:w:0x2a:m -U hfuse:w:0xff:m
 
+
+// ===================================================================================
+// Libraries and Definitions
+// ===================================================================================
 
 // Oscillator calibration value (uncomment and set if necessary)
 //#define OSCCAL_VAL  0x6A
@@ -64,12 +80,12 @@
 #define HYST      16          // hysteresis
 
 // Macros to switch on/off IR LED
-#define IR_on()   DDRB |=  (1<<IR_PIN)    // PB1 as output = IR at OC0B
-#define IR_off()  DDRB &= ~(1<<IR_PIN)    // PB1 as input  = LED off
+#define IR_on()   DDRB |=  (1<<IR_PIN)      // PB1 as output = IR at OC0B
+#define IR_off()  DDRB &= ~(1<<IR_PIN)      // PB1 as input  = LED off
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // NEC Protocol Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 //
 // The NEC protocol uses pulse distance modulation.
 //
@@ -106,9 +122,9 @@
 
 // Send a single byte via IR
 void NEC_sendByte(uint8_t value) {
-  for (uint8_t i=8; i; i--, value>>=1) {  // send 8 bits, LSB first
+  for(uint8_t i=8; i; i--, value>>=1) {   // send 8 bits, LSB first
     NEC_normalPulse();                    // 562us burst, 562us pause
-    if (value & 1) NEC_bit1Pause();       // extend pause if bit is 1
+    if(value & 1) NEC_bit1Pause();        // extend pause if bit is 1
   }
 }
 
@@ -120,7 +136,7 @@ void NEC_sendCode(uint16_t addr, uint8_t cmd) {
 
   // Send telegram
   NEC_startPulse();           // 9ms burst + 4.5ms pause to signify start of transmission
-  if (addr > 0xFF) {          // if extended NEC protocol (16-bit address):
+  if(addr > 0xFF) {           // if extended NEC protocol (16-bit address):
     NEC_sendByte(addr);       // send address low byte
     NEC_sendByte(addr >> 8);  // send address high byte
   } else {                    // if standard NEC protocol (8-bit address):
@@ -132,9 +148,9 @@ void NEC_sendCode(uint16_t addr, uint8_t cmd) {
   NEC_normalPulse();          // 562us burst to signify end of transmission
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // SAMSUNG Protocol Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 //
 // The SAMSUNG protocol corresponds to the NEC protocol, except that the start pulse is
 // 4.5ms long and the address byte is sent twice.
@@ -156,9 +172,9 @@ void SAM_sendCode(uint8_t addr, uint8_t cmd) {
   NEC_normalPulse();          // 562us burst to signify end of transmission
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // RC-5 Protocol Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 //
 // The RC-5 protocol uses bi-phase modulation (Manchester coding).
 //
@@ -202,9 +218,9 @@ void RC5_sendCode(uint8_t addr, uint8_t cmd) {
   // Prepare the message
   uint16_t message = addr << 6;               // shift address to the right position
   message |= (cmd & 0x3f);                    // add the low 6 bits of the command
-  if (~cmd & 0x40) message |= RC5_cmdBit7;    // add inverse of 7th command bit
+  if(~cmd & 0x40) message |= RC5_cmdBit7;     // add inverse of 7th command bit
   message |= RC5_startBit;                    // add start bit
-  if (RC5_toggle) message |= RC5_toggleBit;   // add toggle bit
+  if(RC5_toggle) message |= RC5_toggleBit;    // add toggle bit
 
   // Send the message
   uint16_t bitmask = RC5_startBit;            // set the bitmask to first bit to send
@@ -215,9 +231,9 @@ void RC5_sendCode(uint8_t addr, uint8_t cmd) {
   RC5_toggle ^= 1;                            // toggle the toggle bit
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // SONY SIRC Protocol Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 //
 // The SONY SIRC protocol uses pulse length modulation.
 //
@@ -264,7 +280,7 @@ void SON_sendCode(uint16_t addr, uint8_t cmd, uint8_t bits) {
   // Send telegram
   SON_startPulse();                         // signify start of transmission
   SON_sendByte(cmd, 7);                     // send 7 command bits
-  switch (bits) {
+  switch(bits) {
     case 12: SON_sendByte(addr, 5); break;  // 12-bit version: send 5 address bits
     case 15: SON_sendByte(addr, 8); break;  // 15-bit version: send 8 address bits
     case 20: SON_sendByte(addr, 8); SON_sendByte(addr>>8, 5); break; // 20-bit: 13 bits
@@ -272,9 +288,9 @@ void SON_sendCode(uint16_t addr, uint8_t cmd, uint8_t bits) {
   }
 }
 
-// -----------------------------------------------------------------------------
+// ===================================================================================
 // Watchdog Timer Implementation
-// -----------------------------------------------------------------------------
+// ===================================================================================
 
 // Reset watchdog timer
 void resetWatchdog(void) {
@@ -287,31 +303,30 @@ void resetWatchdog(void) {
 }
 
 // Watchdog interrupt service routine
-ISR (WDT_vect) {
+ISR(WDT_vect) {
   wdt_disable();                          // disable watchdog
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // ADC Implementation
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 
 // ADC read port
 uint16_t readADC(uint8_t port) {
   PRR     = 0;                            // power on ADC
   ADMUX   = port;                         // set port, Vcc as reference
   ADCSRA |= (1<<ADEN) | (1<<ADSC);        // enable ADC, start sampling
-  while (ADCSRA & (1<<ADSC));             // wait until sampling complete
+  while(ADCSRA & (1<<ADSC));              // wait until sampling complete
   uint16_t result = ADC;                  // read sampling result
   ADCSRA &= ~(1<<ADEN);                   // disable ADC
   PRR     = 1<<PRADC;                     // shut down ADC
-  return (result);                        // return sampling result
+  return(result);                         // return sampling result
 }
 
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 // Main Function
-// -----------------------------------------------------------------------------------
+// ===================================================================================
 
-// Main function
 int main(void) {
   // Reset watchdog timer
   resetWatchdog();                      // do this first in case WDT fires
